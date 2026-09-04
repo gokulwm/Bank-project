@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: bank_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  security-qr-service:
+    build:
+      context: ./security-qr-service
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        COPY . .
+        ENV SECURITY_SVC_PORT=8105
+        ENV SECURITY_SVC_DEV_MODE=1
+        ENV SECURITY_SVC_KEY_B64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        CMD ["python", "app.py"]
+    container_name: bank_security_service
+    ports:
+      - "8105:8105"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend/module4_backend
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        COPY . .
+        ENV REDIS_URL=redis://redis:6379
+        ENV SECURITY_SERVICE_URL=http://security-qr-service:8105
+        CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    container_name: bank_backend
+    depends_on:
+      - redis
+      - security-qr-service
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  face-auth:
+    build:
+      context: ./Face-Authentication
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        COPY . .
+        ENV BACKEND_BIOMETRICS_URL=http://backend:8000/api/v1/biometrics
+        CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+    container_name: bank_face_auth
+    depends_on:
+      - backend
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+  voice-ai:
+    build:
+      context: ./voice_module
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        WORKDIR /app
+        RUN pip install --no-cache-dir fastapi uvicorn httpx pydantic
+        COPY . .
+        ENV BACKEND_URL=http://backend:8000
+        CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8200"]
+    container_name: bank_voice_ai
+    depends_on:
+      - backend
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile_inline: |
+        FROM node:18-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm install
+        COPY . .
+        CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    container_name: bank_frontend_kiosk
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+  staff-portal:
+    build:
+      context: ./Staff_Portal
+      dockerfile_inline: |
+        FROM node:18-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm install
+        COPY . .
+        CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5174"]
+    container_name: bank_staff_portal
+    ports:
+      - "5174:5174"
+    restart: unless-stopped

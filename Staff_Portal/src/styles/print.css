@@ -1,0 +1,25 @@
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #printable-receipt-section, #printable-receipt-section * {
+    visibility: visible;
+  }
+  
+  #printable-receipt-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 1.5rem;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
