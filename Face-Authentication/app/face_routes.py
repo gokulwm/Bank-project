@@ -132,8 +132,13 @@ def verify_face(payload: FaceVerifyRequest) -> dict:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if not match.passed:
+        enrolled_count = len(list_face_embeddings())
+        if enrolled_count == 0:
+            feedback = "No enrolled customer faces found. Please enroll your face first in the Face Enrollment portal."
+        else:
+            feedback = "Face not recognized. Only enrolled customers are permitted to access transactions."
         body = _payload(session_id, "fail", True, None, match.score)
-        body["feedback"] = "Face not recognized"
+        body["feedback"] = feedback
         body["anti_spoof_backend"] = antispoof.backend
         log_face_verification(session_id, None, True, match.score, "fail", "no gallery match")
         return body

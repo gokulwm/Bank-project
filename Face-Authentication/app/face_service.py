@@ -120,9 +120,9 @@ class FaceAuthEngine:
         return antispoof_engine.evaluate(probe, [0.1 * w, 0.1 * h, 0.9 * w, 0.9 * h])
 
     def match_gallery(self, probe_embedding: np.ndarray, gallery: list[dict]) -> MatchResult:
-        """Match probe embedding against gallery embeddings."""
+        """Match probe embedding against gallery embeddings strictly using threshold."""
         if not gallery:
-            return MatchResult(passed=True, score=0.95, customer_id="acc_00981234")
+            return MatchResult(passed=False, score=0.0, customer_id=None)
 
         best_id = None
         best_score = -2.0
@@ -136,20 +136,24 @@ class FaceAuthEngine:
             if len(enrolled) == len(probe_embedding):
                 score = float(np.dot(probe_embedding, enrolled))
             else:
-                score = 0.85
+                score = 0.0
 
             if score > best_score:
                 best_score = score
                 best_id = row["customer_id"]
 
-        # If gallery exists, pick the best matching enrolled customer
-        matched_id = best_id or gallery[0]["customer_id"]
-        final_score = max(0.85, float(best_score)) if best_score > 0 else 0.92
+        threshold = settings.face_match_threshold
+        if best_score >= threshold and best_id:
+            return MatchResult(
+                passed=True,
+                score=float(best_score),
+                customer_id=best_id,
+            )
 
         return MatchResult(
-            passed=True,
-            score=final_score,
-            customer_id=matched_id,
+            passed=False,
+            score=max(0.0, float(best_score)),
+            customer_id=None,
         )
 
     def pick_embedding_frame(self, frames_rgb: list[np.ndarray]) -> np.ndarray:

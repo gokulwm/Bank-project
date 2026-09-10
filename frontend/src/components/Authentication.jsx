@@ -3,8 +3,9 @@ import { translate } from '../services/translations.js'
 import { speakText } from '../services/ttsService.js'
 
 const FACE_AUTH_URL = window?.ENV?.FACE_AUTH_URL || 'http://localhost:8002/face-auth/verify-event'
+const ENROLL_PORTAL_URL = 'http://localhost:8002/face-auth/enroll'
 
-export default function Authentication({ preferredLanguage = 'en', sessionId, onVerified }) {
+export default function Authentication({ preferredLanguage = 'en', sessionId, onVerified, onExit }) {
   // 'waiting' -> 'scanning' -> 'verified' | 'failed'
   const [stage, setStage] = useState('waiting')
   const [errorMessage, setErrorMessage] = useState(null)
@@ -14,14 +15,14 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
   const isPlayingRef = useRef(false)
   const streamRef = useRef(null)
 
-  const speakAuthText = async (key) => {
-    const text = translate(preferredLanguage, key)
+  const speakAuthText = async (keyOrText) => {
+    const text = translate(preferredLanguage, keyOrText) || keyOrText
     if (isPlayingRef.current) return
     isPlayingRef.current = true
     try {
       await speakText(text, preferredLanguage)
     } catch (e) {
-      console.warn(`[AUTH-TTS] error speaking ${key}:`, e)
+      console.warn(`[AUTH-TTS] error speaking ${keyOrText}:`, e)
     } finally {
       isPlayingRef.current = false
     }
@@ -39,6 +40,12 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
       }
     } catch (err) {
       console.warn('[FaceAuth] Camera access warning:', err.message)
+      setErrorMessage(
+        preferredLanguage === 'ta'
+          ? 'கேமரா அணுகல் தேவை. தயவுசெய்து கேமராவை அனுமதிக்கவும்.'
+          : 'Camera access is required for biometric authentication. Please allow camera permissions.'
+      )
+      setStage('failed')
     }
   }
 
@@ -66,50 +73,73 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
 
     try {
       const frames = captureFrames(12)
-      let authPassed = false
-      let customerId = 'acc_00981234'
 
-      if (frames.length > 0 && frames[0]) {
-        try {
-          const resp = await fetch(FACE_AUTH_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session_id: sessionId || crypto.randomUUID(),
-              frames_b64: frames,
-            }),
-          })
-          const data = await resp.json()
-          if (data.auth_status === 'pass') {
-            authPassed = true
-            customerId = data.customer_id || 'acc_00981234'
-          }
-        } catch (netErr) {
-          console.warn('[FaceAuth] Remote verification unavailable, applying fallback verification:', netErr)
-          authPassed = true
-        }
-      } else {
-        // Fallback for demo environments without camera permission
-        await new Promise((r) => setTimeout(r, 1200))
-        authPassed = true
+      if (!frames || frames.length === 0 || !frames[0]) {
+        setStage('failed')
+        const msg = preferredLanguage === 'ta'
+          ? 'கேமராவிலிருந்து படம் எடுக்க முடியவில்லை. கேமராவை அனுமதித்து மீண்டும் முயற்சிக்கவும்.'
+          : 'Unable to capture camera feed. Please allow camera access and look directly at the lens.'
+        setErrorMessage(msg)
+        speakAuthText(msg)
+        return
       }
 
-      if (authPassed) {
+      let resp
+      try {
+        resp = await fetch(FACE_AUTH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId || crypto.randomUUID(),
+            frames_b64: frames,
+          }),
+        })
+      } catch (netErr) {
+        console.error('[FaceAuth] Remote verification service unreachable:', netErr)
+        setStage('failed')
+        const msg = preferredLanguage === 'ta'
+          ? 'முக அங்கீகார சேவை கிடைக்கவில்லை. சேவை இயங்குகிறதா என்பதை உறுதிப்படுத்தவும் (Port 8002).'
+          : 'Face authentication service unreachable. Ensure Face Auth service is running on port 8002.'
+        setErrorMessage(msg)
+        speakAuthText(msg)
+        return
+      }
+
+      if (!resp.ok) {
+        setStage('failed')
+        const msg = preferredLanguage === 'ta'
+          ? 'முக அங்கீகாரத்தில் பிழை ஏற்பட்டது. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.'
+          : 'Face authentication service returned an error. Please try again.'
+        setErrorMessage(msg)
+        speakAuthText(msg)
+        return
+      }
+
+      const data = await resp.json()
+      console.log('[FaceAuth Response]', data)
+
+      if (data.auth_status === 'pass' && data.customer_id) {
         setStage('verified')
-        setMatchedUser(customerId)
+        setMatchedUser(data.customer_id)
         speakAuthText('identityVerified')
         setTimeout(() => {
           if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop())
           }
-          onVerified(customerId)
+          onVerified(data.customer_id)
         }, 1200)
       } else {
         setStage('failed')
-        setErrorMessage('Face authentication failed. Please look straight and blink naturally.')
+        const failureReason = data.feedback || (
+          preferredLanguage === 'ta'
+            ? 'முகம் அடையாளம் காணப்படவில்லை. பதிவு செய்யப்பட்ட வாடிக்கையாளர்கள் மட்டுமே பண பரிவர்த்தனை செய்ய முடியும்.'
+            : 'Face not recognized. Only enrolled customers are permitted to access transactions.'
+        )
+        setErrorMessage(failureReason)
+        speakAuthText(failureReason)
       }
     } catch (err) {
-      console.error('[FaceAuth] Verification error:', err)
+      console.error('[FaceAuth] Verification execution error:', err)
       setStage('failed')
       setErrorMessage(err.message || 'Verification error')
     }
@@ -148,8 +178,8 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
           <h2 className="screen__title">{translate(preferredLanguage, 'step2Title')}</h2>
           <p className="screen__subtitle">
             {preferredLanguage === 'ta'
-              ? 'முக அங்கீகாரம் மூலம் அடையாளம் காணப்படுகிறீர்கள்'
-              : 'Face identification and live anti-spoofing verification'}
+              ? 'முக அங்கீகாரம் மூலம் அடையாளம் காணப்படுகிறீர்கள் (பதிவு செய்த வாடிக்கையாளர்களுக்கு மட்டும்)'
+              : 'Face biometric verification (enrolled customers only)'}
           </p>
 
           <ul className="auth-steps">
@@ -172,19 +202,77 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
             </div>
           )}
 
-          {errorMessage && (
-            <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '8px', color: '#ef4444' }}>
-              {errorMessage}
-              <button
-                style={{ marginTop: '8px', display: 'block', padding: '6px 12px', borderRadius: '6px', background: '#ef4444', color: '#fff', border: 0, cursor: 'pointer' }}
-                onClick={runFaceVerification}
-              >
-                Retry Face Scan
-              </button>
+          {stage === 'failed' && (
+            <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', borderRadius: '12px', color: '#ef4444' }}>
+              <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '6px' }}>
+                ❌ {translate(preferredLanguage, 'faceAuthFailedTitle') || 'Face Verification Failed'}
+              </div>
+              <p style={{ margin: '0 0 10px', fontSize: '0.92rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                {errorMessage}
+              </p>
+              <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                {translate(preferredLanguage, 'faceNotEnrolled')}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <a
+                  href={ENROLL_PORTAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: '#2563eb',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '0.92rem',
+                  }}
+                >
+                  📸 {translate(preferredLanguage, 'openEnrollPortal') || 'Open Face Enrollment Portal'} ↗
+                </a>
+
+                <button
+                  type="button"
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 0,
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '0.92rem',
+                  }}
+                  onClick={runFaceVerification}
+                >
+                  🔄 {translate(preferredLanguage, 'retryFaceScan') || 'Retry Face Scan'}
+                </button>
+
+                {onExit && (
+                  <button
+                    type="button"
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      background: 'transparent',
+                      color: '#94a3b8',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      cursor: 'pointer',
+                      fontSize: '0.88rem',
+                    }}
+                    onClick={onExit}
+                  >
+                    🏠 {translate(preferredLanguage, 'returnHome') || 'Return to Home'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          <p className="auth-security-note">
+          <p className="auth-security-note" style={{ marginTop: '16px' }}>
             {translate(preferredLanguage, 'securityNote')}
           </p>
         </div>
@@ -209,13 +297,19 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
                 ✓
               </div>
             )}
+
+            {stage === 'failed' && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(239, 68, 68, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem' }}>
+                ✗
+              </div>
+            )}
           </div>
 
           <p className="scanner__status" style={{ marginTop: '12px' }}>
             {stage === 'waiting' && (preferredLanguage === 'ta' ? 'கேமராவைப் பாருங்கள்...' : 'Looking for face...')}
             {stage === 'scanning' && translate(preferredLanguage, 'scanningIdentity')}
             {stage === 'verified' && translate(preferredLanguage, 'identityVerified')}
-            {stage === 'failed' && 'Verification failed — please retry'}
+            {stage === 'failed' && (preferredLanguage === 'ta' ? 'சரிபார்ப்பு தோல்வியடைந்தது — பதிவு செய்த பின் முயற்சிக்கவும்' : 'Authentication failed — please enroll or retry')}
           </p>
         </div>
       </div>

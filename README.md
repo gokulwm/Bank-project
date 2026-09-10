@@ -77,7 +77,8 @@ start_all.bat
 Once started, open:
 - **Kiosk UI**: [http://localhost:5173](http://localhost:5173)
 - **Staff Portal**: [http://localhost:5174](http://localhost:5174)
-- **Face Enrollment Tool**: [http://localhost:8002/enroll-ui](http://localhost:8002/enroll-ui)
+- **Face Enrollment Tool**: [http://localhost:8002/face-auth/enroll](http://localhost:8002/face-auth/enroll)
+- **Face Verification Tool**: [http://localhost:8002/face-auth/verify](http://localhost:8002/face-auth/verify)
 
 ---
 

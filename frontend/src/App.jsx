@@ -391,7 +391,12 @@ export default function App() {
         )}
 
         {currentScreen === 'auth' && (
-          <Authentication preferredLanguage={preferredLanguage || 'en'} sessionId={sessionId} onVerified={completeAuthentication} />
+          <Authentication
+            preferredLanguage={preferredLanguage || 'en'}
+            sessionId={sessionId}
+            onVerified={completeAuthentication}
+            onExit={exitKiosk}
+          />
         )}
 
         {currentScreen === 'assistant' && (
