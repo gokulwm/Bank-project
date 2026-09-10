@@ -8,6 +8,7 @@ import Confirmation from './components/Confirmation.jsx'
 import Success from './components/Success.jsx'
 import ErrorScreen from './components/ErrorScreen.jsx'
 import ProgressIndicator from './components/ProgressIndicator.jsx'
+import FaceEnrollment from './components/FaceEnrollment.jsx'
 import VoiceAIMockService, { detectIntent, extractAmount, normalizeTranscript } from './services/voiceService.js'
 import { speakGuidance, speakText, stopSpeechOutput } from './services/ttsService.js'
 import { translate } from './services/translations.js'
@@ -173,6 +174,11 @@ export default function App() {
     startInactivityTimer()
     goTo('language')
   }, [goTo, startInactivityTimer])
+
+  const startEnrollment = useCallback(() => {
+    clearInactivityTimers()
+    goTo('enroll')
+  }, [clearInactivityTimers, goTo])
 
   const selectLanguage = useCallback(
     (langCode) => {
@@ -384,7 +390,21 @@ export default function App() {
       <ProgressIndicator currentScreen={currentScreen} preferredLanguage={preferredLanguage} />
 
       <main className="kiosk-main">
-        {currentScreen === 'welcome' && <Welcome preferredLanguage={preferredLanguage || 'en'} onStart={startSession} />}
+        {currentScreen === 'welcome' && (
+          <Welcome
+            preferredLanguage={preferredLanguage || 'en'}
+            onStart={startSession}
+            onEnroll={startEnrollment}
+          />
+        )}
+
+        {currentScreen === 'enroll' && (
+          <FaceEnrollment
+            preferredLanguage={preferredLanguage || 'en'}
+            onComplete={startSession}
+            onExit={exitKiosk}
+          />
+        )}
 
         {currentScreen === 'language' && (
           <LanguageSelection onSelect={selectLanguage} />
@@ -396,6 +416,7 @@ export default function App() {
             sessionId={sessionId}
             onVerified={completeAuthentication}
             onExit={exitKiosk}
+            onEnroll={startEnrollment}
           />
         )}
 

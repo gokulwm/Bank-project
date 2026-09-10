@@ -75,10 +75,12 @@ start_all.bat
 ```
 
 Once started, open:
-- **Kiosk UI**: [http://localhost:5173](http://localhost:5173)
-- **Staff Portal**: [http://localhost:5174](http://localhost:5174)
-- **Face Enrollment Tool**: [http://localhost:8002/face-auth/enroll](http://localhost:8002/face-auth/enroll)
-- **Face Verification Tool**: [http://localhost:8002/face-auth/verify](http://localhost:8002/face-auth/verify)
+- **Kiosk UI (Customer Experience & Face Registration)**: [http://localhost:5173](http://localhost:5173)
+- **Staff Portal (Teller Dashboard)**: [http://localhost:5174](http://localhost:5174)
+- **Developer Face Enrollment Tool (Internal Test Tool)**: [http://localhost:8002/face-auth/enroll](http://localhost:8002/face-auth/enroll)
+- **Developer Face Verification Tool (Internal Test Tool)**: [http://localhost:8002/face-auth/verify](http://localhost:8002/face-auth/verify)
+
+> 💡 **Customer Registration**: New customers can click **"New Registration"** on the main Kiosk UI ([http://localhost:5173](http://localhost:5173)) for a guided, dark-navy branded biometric enrollment experience with live camera framing overlays and demo account card selection.
 
 ---
 

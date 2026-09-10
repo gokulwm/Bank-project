@@ -6,7 +6,7 @@ import { translate } from '../services/translations.js'
 // orb visual on the right. Entry point of the kiosk - starting a
 // session is still just this one onStart() call.
 
-export default function Welcome({ preferredLanguage = 'en', onStart }) {
+export default function Welcome({ preferredLanguage = 'en', onStart, onEnroll }) {
   return (
     <section className="screen screen--welcome">
       <div className="hero-split">
@@ -19,9 +19,18 @@ export default function Welcome({ preferredLanguage = 'en', onStart }) {
             {translate(preferredLanguage, 'welcomeDesc')}
           </p>
 
-          <button className="btn btn--primary btn--lg" onClick={onStart}>
-            {translate(preferredLanguage, 'startBanking')}
-          </button>
+          <div className="hero-cta-group">
+            <button className="btn btn--primary btn--lg" onClick={onStart}>
+              {translate(preferredLanguage, 'startBanking')}
+            </button>
+            <button
+              className="btn btn--secondary btn--lg hero-enroll-btn"
+              onClick={onEnroll}
+              type="button"
+            >
+              👤 {translate(preferredLanguage, 'newRegistration')}
+            </button>
+          </div>
         </div>
 
         <div className="hero-right">

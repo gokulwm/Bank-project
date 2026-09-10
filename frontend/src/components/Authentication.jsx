@@ -5,7 +5,7 @@ import { speakText } from '../services/ttsService.js'
 const FACE_AUTH_URL = window?.ENV?.FACE_AUTH_URL || 'http://localhost:8002/face-auth/verify-event'
 const ENROLL_PORTAL_URL = 'http://localhost:8002/face-auth/enroll'
 
-export default function Authentication({ preferredLanguage = 'en', sessionId, onVerified, onExit }) {
+export default function Authentication({ preferredLanguage = 'en', sessionId, onVerified, onExit, onEnroll }) {
   // 'waiting' -> 'scanning' -> 'verified' | 'failed'
   const [stage, setStage] = useState('waiting')
   const [errorMessage, setErrorMessage] = useState(null)
@@ -215,24 +215,47 @@ export default function Authentication({ preferredLanguage = 'en', sessionId, on
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <a
-                  href={ENROLL_PORTAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'block',
-                    textAlign: 'center',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: '#2563eb',
-                    color: '#fff',
-                    textDecoration: 'none',
-                    fontWeight: '600',
-                    fontSize: '0.92rem',
-                  }}
-                >
-                  📸 {translate(preferredLanguage, 'openEnrollPortal') || 'Open Face Enrollment Portal'} ↗
-                </a>
+                {onEnroll ? (
+                  <button
+                    type="button"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'center',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+                      color: '#fff',
+                      border: 0,
+                      cursor: 'pointer',
+                      fontWeight: '700',
+                      fontSize: '0.92rem',
+                      boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+                    }}
+                    onClick={onEnroll}
+                  >
+                    📸 {translate(preferredLanguage, 'openEnrollPortal') || 'Open Face Enrollment Portal'} →
+                  </button>
+                ) : (
+                  <a
+                    href={ENROLL_PORTAL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'block',
+                      textAlign: 'center',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: '#2563eb',
+                      color: '#fff',
+                      textDecoration: 'none',
+                      fontWeight: '600',
+                      fontSize: '0.92rem',
+                    }}
+                  >
+                    📸 {translate(preferredLanguage, 'openEnrollPortal') || 'Open Face Enrollment Portal'} ↗
+                  </a>
+                )}
 
                 <button
                   type="button"

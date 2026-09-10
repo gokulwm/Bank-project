@@ -45,9 +45,10 @@ Set `FACE_AUTH_BASE_URL` to your public HTTPS origin (ngrok). Camera access need
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- Enroll: `/face-auth/enroll`
-- Verify: `/face-auth/verify`
-- Health: `/health`
+- Developer Face Enrollment Tool (Internal testing): `/face-auth/enroll`
+- Developer Face Verification Tool (Internal testing): `/face-auth/verify`
+- Customer Face Enrollment Portal: Built into the Kiosk UI at `frontend/src/components/FaceEnrollment.jsx` (available via "New Registration" on `http://localhost:5173`)
+- Health Check: `/health`
 - Mock Backend: `POST /mock-backend/event`
 
 First InsightFace run downloads `buffalo_l`. First anti-spoof run downloads MiniFASNet ONNX weights.
